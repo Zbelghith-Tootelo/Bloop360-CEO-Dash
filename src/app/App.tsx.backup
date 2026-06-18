@@ -1,0 +1,1085 @@
+import { useState, useMemo } from "react";
+import {
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  Tooltip as RechartsTooltip, ResponsiveContainer,
+} from "recharts";
+import { RisquesPsychosociauxChart } from "./components/RisquesPsychosociauxChart";
+import { RadialScoreChart } from "./components/RadialScoreChart";
+import { TeamEvolutionChart } from "./components/TeamEvolutionChart";
+
+// ── Avatar image imports (figma:asset scheme) ──────────────────────────────
+import imgJohnDoe from "figma:asset/da21dea4016a1e96c35afbdf13698be1d0707b04.png";
+import imgElodie from "figma:asset/ba8a9007d6287dc1180e2bf9cebd6af7a6a6d51b.png";
+import imgCamille from "figma:asset/2a4725d71881ca218273d0c90d780f5baa3c47d7.png";
+import imgElodie2 from "figma:asset/ae494eae6e9632e08a4bc414565265b7fd8eb58f.png";
+import imgJulien from "figma:asset/1481ae2d3e8333ff517646e4cefd8d26cfc43922.png";
+import imgCamille2 from "figma:asset/8c51d4525445c81d68eff6e426f3c29872b7fc6d.png";
+import imgLucas from "figma:asset/c7a73b3ed8edb2a50f46e45f816683ed992d3ace.png";
+import imgSophie from "figma:asset/d25ee9fda285029c794d20381a9025b7a124040e.png";
+import imgLuc from "figma:asset/3fb84517c4c4b01f64ac2599eac473be4a8eb3e0.png";
+import imgJulienM from "figma:asset/0d9d0f8c1b827a2f5e19132899970e85082daa39.png";
+import imgNicolas from "figma:asset/0c4a30be67a459ab3363c8b9a59ac3f6b1e52d10.png";
+import imgSophieL from "figma:asset/dad736110839321ad1ccbc84ed074f9cc6ec0113.png";
+
+// ── Data ───────────────────────────────────────────────────────────────────
+const MONTHS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"];
+
+const COLOR_PALETTE = [
+  "#00B7AE", "#1E81FF", "#FF6B6B", "#F59E0B",
+  "#8B5CF6", "#10B981", "#F97316", "#EC4899",
+  "#04604E", "#6366F1",
+];
+
+const avg = (nums: number[]) => nums.reduce((s, n) => s + n, 0) / (nums.length || 1);
+
+interface Employee {
+  id: string;
+  name: string;
+  avatar: string;
+  isTeamLead: boolean;
+  teamId: string;
+  metrics: { bienveillance: number; apport: number; positivite: number; accomplissement: number; bienEtre: number; plaisir: number; enps: string };
+  drapeaux: { green: number; orange: number; red: number };
+  monthlyData: number[];
+  members?: Employee[];
+}
+
+const TEAMS: Employee[] = [
+  {
+    id: "elodie-moreau",
+    name: "Élodie Moreau",
+    avatar: imgElodie,
+    isTeamLead: true,
+    teamId: "team-elodie",
+    metrics: { bienveillance: 9.23, apport: 8.73, positivite: 8.19, accomplissement: 6.23, bienEtre: 8.95, plaisir: 7.73, enps: "N/A" },
+    drapeaux: { green: 8, orange: 10, red: 5 },
+    monthlyData: [8.9, 9.1, 9.0, 8.8, 9.2, 9.3, 9.1, 8.9, 9.0, 9.2, 9.3, 9.1],
+    members: [
+      {
+        id: "elodie-sub",
+        name: "Élodie More...",
+        avatar: imgElodie2,
+        isTeamLead: false,
+        teamId: "team-elodie",
+        metrics: { bienveillance: 9.20, apport: 7.85, positivite: 8.60, accomplissement: 6.40, bienEtre: 9.10, plaisir: 7.30, enps: "N/A" },
+        drapeaux: { green: 11, orange: 8, red: 3 },
+        monthlyData: [8.5, 8.7, 8.6, 8.4, 8.8, 8.9, 8.7, 8.5, 8.6, 8.8, 8.9, 8.7],
+      },
+      {
+        id: "julien-dupont",
+        name: "Julien Dupo...",
+        avatar: imgJulien,
+        isTeamLead: false,
+        teamId: "team-elodie",
+        metrics: { bienveillance: 7.60, apport: 9.20, positivite: 6.90, accomplissement: 8.50, bienEtre: 7.10, plaisir: 9.40, enps: "N/A" },
+        drapeaux: { green: 9, orange: 11, red: 4 },
+        monthlyData: [7.8, 8.1, 7.9, 8.3, 8.0, 7.7, 8.2, 8.4, 7.9, 8.1, 8.3, 8.0],
+      },
+      {
+        id: "camille-sub",
+        name: "Camille Lefè...",
+        avatar: imgCamille2,
+        isTeamLead: false,
+        teamId: "team-elodie",
+        metrics: { bienveillance: 8.80, apport: 6.70, positivite: 9.50, accomplissement: 7.90, bienEtre: 6.20, plaisir: 8.70, enps: "N/A" },
+        drapeaux: { green: 13, orange: 7, red: 2 },
+        monthlyData: [8.2, 8.5, 8.8, 8.6, 8.3, 8.7, 8.4, 8.1, 8.6, 8.9, 8.5, 8.4],
+      },
+      {
+        id: "lucas",
+        name: "Lucas Berna...",
+        avatar: imgLucas,
+        isTeamLead: false,
+        teamId: "team-elodie",
+        metrics: { bienveillance: 6.30, apport: 9.60, positivite: 7.40, accomplissement: 9.20, bienEtre: 8.80, plaisir: 6.10, enps: "N/A" },
+        drapeaux: { green: 7, orange: 14, red: 6 },
+        monthlyData: [7.2, 7.8, 8.1, 7.5, 7.9, 8.3, 7.6, 8.0, 7.4, 7.7, 8.2, 7.9],
+      },
+      {
+        id: "sophie-sub",
+        name: "Sophie Dub...",
+        avatar: imgSophie,
+        isTeamLead: false,
+        teamId: "team-elodie",
+        metrics: { bienveillance: 9.50, apport: 7.20, positivite: 8.90, accomplissement: 5.80, bienEtre: 9.60, plaisir: 7.90, enps: "N/A" },
+        drapeaux: { green: 10, orange: 9, red: 5 },
+        monthlyData: [8.8, 9.0, 8.7, 9.1, 8.9, 8.6, 9.2, 8.8, 8.5, 9.0, 8.7, 8.9],
+      },
+    ],
+  },
+  {
+    id: "camille-lefevre",
+    name: "Camille Lefèvre",
+    avatar: imgCamille,
+    isTeamLead: true,
+    teamId: "team-camille",
+    metrics: { bienveillance: 7.80, apport: 9.40, positivite: 6.60, accomplissement: 8.90, bienEtre: 7.50, plaisir: 9.20, enps: "N/A" },
+    drapeaux: { green: 11, orange: 6, red: 3 },
+    monthlyData: [7.6, 8.0, 8.3, 7.9, 8.2, 8.5, 8.1, 7.8, 8.4, 8.0, 7.7, 8.2],
+    members: [
+      { id: "cam-m1", name: "Lucas Bernard", avatar: imgLucas, isTeamLead: false, teamId: "team-camille", metrics: { bienveillance: 8.10, apport: 9.60, positivite: 6.20, accomplissement: 7.80, bienEtre: 8.90, plaisir: 7.40, enps: "N/A" }, drapeaux: { green: 9, orange: 5, red: 2 }, monthlyData: [7.8, 8.1, 8.4, 8.0, 8.3, 8.6, 8.2, 7.9, 8.5, 8.1, 7.8, 8.3] },
+      { id: "cam-m2", name: "Sophie Dubois", avatar: imgSophie, isTeamLead: false, teamId: "team-camille", metrics: { bienveillance: 6.90, apport: 8.70, positivite: 7.40, accomplissement: 9.50, bienEtre: 6.80, plaisir: 9.70, enps: "N/A" }, drapeaux: { green: 12, orange: 7, red: 1 }, monthlyData: [7.2, 7.6, 7.9, 7.5, 7.8, 8.1, 7.7, 7.4, 8.0, 7.6, 7.3, 7.8] },
+      { id: "cam-m3", name: "Julien Dupont", avatar: imgJulien, isTeamLead: false, teamId: "team-camille", metrics: { bienveillance: 8.50, apport: 9.10, positivite: 6.80, accomplissement: 8.30, bienEtre: 7.20, plaisir: 8.90, enps: "N/A" }, drapeaux: { green: 10, orange: 8, red: 3 }, monthlyData: [8.0, 8.4, 8.7, 8.3, 8.6, 8.9, 8.5, 8.2, 8.8, 8.4, 8.1, 8.6] },
+    ],
+  },
+  {
+    id: "luc-dubois",
+    name: "Luc Dubois",
+    avatar: imgLuc,
+    isTeamLead: true,
+    teamId: "team-luc",
+    metrics: { bienveillance: 6.10, apport: 8.30, positivite: 9.60, accomplissement: 7.20, bienEtre: 5.90, plaisir: 8.80, enps: "N/A" },
+    drapeaux: { green: 12, orange: 10, red: 7 },
+    monthlyData: [6.8, 7.2, 7.5, 7.0, 7.3, 6.9, 7.4, 7.1, 6.7, 7.3, 7.5, 7.2],
+    members: [
+      { id: "luc-m1", name: "Élodie Moreau", avatar: imgElodie2, isTeamLead: false, teamId: "team-luc", metrics: { bienveillance: 5.80, apport: 8.60, positivite: 9.20, accomplissement: 7.50, bienEtre: 6.30, plaisir: 8.40, enps: "N/A" }, drapeaux: { green: 8, orange: 11, red: 5 }, monthlyData: [6.5, 6.9, 7.2, 6.8, 7.1, 6.7, 7.2, 6.9, 6.4, 7.0, 7.2, 6.9] },
+      { id: "luc-m2", name: "Camille Lefè...", avatar: imgCamille2, isTeamLead: false, teamId: "team-luc", metrics: { bienveillance: 6.70, apport: 7.90, positivite: 9.40, accomplissement: 6.80, bienEtre: 5.60, plaisir: 9.10, enps: "N/A" }, drapeaux: { green: 13, orange: 9, red: 6 }, monthlyData: [7.1, 7.5, 7.8, 7.4, 7.7, 7.3, 7.8, 7.5, 7.0, 7.6, 7.8, 7.5] },
+      { id: "luc-m3", name: "Nicolas Martin", avatar: imgNicolas, isTeamLead: false, teamId: "team-luc", metrics: { bienveillance: 6.40, apport: 8.10, positivite: 9.80, accomplissement: 7.90, bienEtre: 5.70, plaisir: 8.60, enps: "N/A" }, drapeaux: { green: 11, orange: 10, red: 8 }, monthlyData: [6.9, 7.3, 7.6, 7.2, 7.5, 7.1, 7.6, 7.3, 6.8, 7.4, 7.6, 7.3] },
+      { id: "luc-m4", name: "Sophie Lambert", avatar: imgSophieL, isTeamLead: false, teamId: "team-luc", metrics: { bienveillance: 5.60, apport: 8.50, positivite: 9.70, accomplissement: 6.60, bienEtre: 6.10, plaisir: 9.20, enps: "N/A" }, drapeaux: { green: 14, orange: 8, red: 7 }, monthlyData: [6.7, 7.1, 7.4, 7.0, 7.3, 6.9, 7.4, 7.1, 6.6, 7.2, 7.4, 7.1] },
+    ],
+  },
+  {
+    id: "julien-martel",
+    name: "Julien Martel",
+    avatar: imgJulienM,
+    isTeamLead: true,
+    teamId: "team-julien",
+    metrics: { bienveillance: 9.10, apport: 6.50, positivite: 8.40, accomplissement: 5.70, bienEtre: 9.30, plaisir: 7.00, enps: "N/A" },
+    drapeaux: { green: 14, orange: 8, red: 4 },
+    monthlyData: [7.9, 7.6, 8.0, 8.3, 7.7, 7.4, 7.8, 8.1, 7.5, 7.9, 8.2, 7.8],
+    members: [
+      { id: "jul-m1", name: "Lucas Bernard", avatar: imgLucas, isTeamLead: false, teamId: "team-julien", metrics: { bienveillance: 9.40, apport: 6.20, positivite: 8.10, accomplissement: 5.50, bienEtre: 9.60, plaisir: 6.80, enps: "N/A" }, drapeaux: { green: 12, orange: 7, red: 3 }, monthlyData: [7.6, 7.3, 7.7, 8.0, 7.4, 7.1, 7.5, 7.8, 7.2, 7.6, 7.9, 7.5] },
+      { id: "jul-m2", name: "Élodie More...", avatar: imgElodie2, isTeamLead: false, teamId: "team-julien", metrics: { bienveillance: 8.80, apport: 6.80, positivite: 8.70, accomplissement: 5.90, bienEtre: 9.10, plaisir: 7.20, enps: "N/A" }, drapeaux: { green: 15, orange: 9, red: 5 }, monthlyData: [8.1, 7.8, 8.2, 8.5, 7.9, 7.6, 8.0, 8.3, 7.7, 8.1, 8.4, 8.0] },
+      { id: "jul-m3", name: "Sophie Dub...", avatar: imgSophie, isTeamLead: false, teamId: "team-julien", metrics: { bienveillance: 9.20, apport: 6.40, positivite: 8.20, accomplissement: 5.60, bienEtre: 9.40, plaisir: 6.90, enps: "N/A" }, drapeaux: { green: 13, orange: 8, red: 4 }, monthlyData: [7.8, 7.5, 7.9, 8.2, 7.6, 7.3, 7.7, 8.0, 7.4, 7.8, 8.1, 7.7] },
+    ],
+  },
+  {
+    id: "nicolas-girard",
+    name: "Nicolas Girard",
+    avatar: imgNicolas,
+    isTeamLead: true,
+    teamId: "team-nicolas",
+    metrics: { bienveillance: 8.70, apport: 9.50, positivite: 7.30, accomplissement: 9.40, bienEtre: 6.80, plaisir: 8.10, enps: "N/A" },
+    drapeaux: { green: 10, orange: 12, red: 3 },
+    monthlyData: [8.3, 8.7, 8.5, 9.0, 8.8, 8.4, 8.6, 9.1, 8.7, 8.9, 8.5, 8.8],
+    members: [
+      { id: "nic-m1", name: "Julien Martel", avatar: imgJulienM, isTeamLead: false, teamId: "team-nicolas", metrics: { bienveillance: 8.40, apport: 9.70, positivite: 7.10, accomplissement: 9.60, bienEtre: 6.50, plaisir: 8.30, enps: "N/A" }, drapeaux: { green: 9, orange: 11, red: 2 }, monthlyData: [8.0, 8.4, 8.2, 8.7, 8.5, 8.1, 8.3, 8.8, 8.4, 8.6, 8.2, 8.5] },
+      { id: "nic-m2", name: "Camille Lefè...", avatar: imgCamille2, isTeamLead: false, teamId: "team-nicolas", metrics: { bienveillance: 9.00, apport: 9.20, positivite: 7.50, accomplissement: 9.10, bienEtre: 7.10, plaisir: 7.90, enps: "N/A" }, drapeaux: { green: 11, orange: 13, red: 4 }, monthlyData: [8.5, 8.9, 8.7, 9.2, 9.0, 8.6, 8.8, 9.3, 8.9, 9.1, 8.7, 9.0] },
+      { id: "nic-m3", name: "Luc Dubois", avatar: imgLuc, isTeamLead: false, teamId: "team-nicolas", metrics: { bienveillance: 8.60, apport: 9.60, positivite: 7.20, accomplissement: 9.30, bienEtre: 6.70, plaisir: 8.20, enps: "N/A" }, drapeaux: { green: 10, orange: 12, red: 3 }, monthlyData: [8.2, 8.6, 8.4, 8.9, 8.7, 8.3, 8.5, 9.0, 8.6, 8.8, 8.4, 8.7] },
+    ],
+  },
+  {
+    id: "sophie-lambert",
+    name: "Sophie Lambert",
+    avatar: imgSophieL,
+    isTeamLead: true,
+    teamId: "team-sophie",
+    metrics: { bienveillance: 7.00, apport: 8.90, positivite: 9.70, accomplissement: 6.80, bienEtre: 8.40, plaisir: 5.60, enps: "N/A" },
+    drapeaux: { green: 8, orange: 14, red: 9 },
+    monthlyData: [7.5, 7.9, 8.2, 7.7, 8.0, 8.4, 7.8, 7.6, 8.1, 7.9, 8.3, 7.8],
+    members: [
+      { id: "sop-m1", name: "Élodie More...", avatar: imgElodie2, isTeamLead: false, teamId: "team-sophie", metrics: { bienveillance: 7.30, apport: 9.10, positivite: 9.40, accomplissement: 6.50, bienEtre: 8.70, plaisir: 5.80, enps: "N/A" }, drapeaux: { green: 7, orange: 13, red: 8 }, monthlyData: [7.2, 7.6, 7.9, 7.4, 7.7, 8.1, 7.5, 7.3, 7.8, 7.6, 8.0, 7.5] },
+      { id: "sop-m2", name: "Lucas Bernard", avatar: imgLucas, isTeamLead: false, teamId: "team-sophie", metrics: { bienveillance: 6.60, apport: 8.60, positivite: 9.90, accomplissement: 7.10, bienEtre: 8.00, plaisir: 5.40, enps: "N/A" }, drapeaux: { green: 9, orange: 15, red: 10 }, monthlyData: [7.7, 8.1, 8.4, 7.9, 8.2, 8.6, 8.0, 7.8, 8.3, 8.1, 8.5, 8.0] },
+      { id: "sop-m3", name: "Julien Dupo...", avatar: imgJulien, isTeamLead: false, teamId: "team-sophie", metrics: { bienveillance: 7.10, apport: 9.00, positivite: 9.60, accomplissement: 6.90, bienEtre: 8.50, plaisir: 5.70, enps: "N/A" }, drapeaux: { green: 8, orange: 14, red: 9 }, monthlyData: [7.4, 7.8, 8.1, 7.6, 7.9, 8.3, 7.7, 7.5, 8.0, 7.8, 8.2, 7.7] },
+      { id: "sop-m4", name: "Sophie Dub...", avatar: imgSophie, isTeamLead: false, teamId: "team-sophie", metrics: { bienveillance: 7.20, apport: 8.80, positivite: 9.50, accomplissement: 6.70, bienEtre: 8.20, plaisir: 5.90, enps: "N/A" }, drapeaux: { green: 8, orange: 14, red: 9 }, monthlyData: [7.3, 7.7, 8.0, 7.5, 7.8, 8.2, 7.6, 7.4, 7.9, 7.7, 8.1, 7.6] },
+    ],
+  },
+];
+
+// ── Sub-components ────────────────────────────────────────────────────────
+
+function BloopLogo() {
+  return (
+    <div className="flex items-center gap-1">
+      <span style={{ fontFamily: "Montserrat, sans-serif", fontWeight: 700, fontSize: 24, color: "#111" }}>bloop</span>
+      <span style={{ fontFamily: "Montserrat, sans-serif", fontWeight: 700, fontSize: 14, color: "#00B7AE", alignSelf: "flex-start", marginTop: 4 }}>365</span>
+    </div>
+  );
+}
+
+function CheckboxColored({ checked, color, onChange }: { checked: boolean; color: string; onChange: () => void }) {
+  return (
+    <button
+      onClick={onChange}
+      className="shrink-0 rounded-[4px] flex items-center justify-center cursor-pointer transition-all"
+      style={{
+        width: 20,
+        height: 20,
+        background: checked ? color : "transparent",
+        border: checked ? `1.5px solid ${color}` : "1.5px solid #CECECE",
+      }}
+    >
+      {checked && (
+        <svg width="12" height="9" viewBox="0 0 12 9" fill="none">
+          <path d="M1 4L4.5 7.5L11 1" stroke="#FAFAFA" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+function FlagBadge({ count, color }: { count: number; color: string }) {
+  return (
+    <div className="flex items-center gap-[2px]">
+      <svg width="10" height="12" viewBox="0 0 10 14" fill="none">
+        <path d="M1 1v12M1 1l8 3-8 3" stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <span style={{ fontFamily: "Montserrat, sans-serif", fontSize: 13, color: "#111", fontWeight: 400 }}>x {count}</span>
+    </div>
+  );
+}
+
+// ── Main App ───────────────────────────────────────────────────────────────
+export default function App() {
+  const [activeTab, setActiveTab] = useState("overview");
+  const [activeFilter, setActiveFilter] = useState("bienveillance");
+  const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
+  const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(["elodie-moreau", "camille-lefevre"]));
+  const [assignedColors, setAssignedColors] = useState<Record<string, string>>({
+    "elodie-moreau": COLOR_PALETTE[0],
+    "camille-lefevre": COLOR_PALETTE[1],
+  });
+  const [colorIndex, setColorIndex] = useState(2);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [radarPeriod, setRadarPeriod] = useState("30 derniers jours");
+  const [radarCollapsed, setRadarCollapsed] = useState(false);
+  const [radialCollapsed, setRadialCollapsed] = useState(false);
+
+  const toggleExpand = (id: string) => {
+    setExpandedTeams(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAllMembers = (team: Employee) => {
+    if (!team.members) return;
+    const memberIds = team.members.map(m => m.id);
+    const allSelected = memberIds.every(id => selectedIds.has(id));
+
+    if (allSelected) {
+      // Deselect all members
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        memberIds.forEach(id => next.delete(id));
+        return next;
+      });
+    } else {
+      // Select all members — each member gets their own unique color
+      let idx = colorIndex;
+      const newColors: Record<string, string> = {};
+      memberIds.forEach(id => {
+        if (!assignedColors[id]) {
+          newColors[id] = COLOR_PALETTE[idx % COLOR_PALETTE.length];
+          idx++;
+        }
+      });
+      if (Object.keys(newColors).length > 0) {
+        setAssignedColors(c => ({ ...c, ...newColors }));
+        setColorIndex(idx);
+      }
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        memberIds.forEach(id => next.add(id));
+        return next;
+      });
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+        return next;
+      } else {
+        const color = assignedColors[id] ?? COLOR_PALETTE[colorIndex % COLOR_PALETTE.length];
+        if (!assignedColors[id]) {
+          setAssignedColors(c => ({ ...c, [id]: color }));
+          setColorIndex(i => i + 1);
+        }
+        next.add(id);
+        return next;
+      }
+    });
+  };
+
+  // For a team lead: compute average of all members' metrics and monthly data
+  const computeTeamAverage = (team: Employee): Employee => {
+    if (!team.members || team.members.length === 0) return team;
+    const m = team.members;
+    return {
+      ...team,
+      metrics: {
+        bienveillance:   avg(m.map(e => e.metrics.bienveillance)),
+        apport:          avg(m.map(e => e.metrics.apport)),
+        positivite:      avg(m.map(e => e.metrics.positivite)),
+        accomplissement: avg(m.map(e => e.metrics.accomplissement)),
+        bienEtre:        avg(m.map(e => e.metrics.bienEtre)),
+        plaisir:         avg(m.map(e => e.metrics.plaisir)),
+        enps:            "N/A",
+      },
+      monthlyData: MONTHS.map((_, i) => avg(m.map(e => e.monthlyData[i]))),
+    };
+  };
+
+  // Collect resolved entries for the chart (team lead → team average, member → personal)
+  const chartEntries = useMemo(() => {
+    const entries: { emp: Employee; color: string; label: string }[] = [];
+    for (const team of TEAMS) {
+      if (selectedIds.has(team.id)) {
+        entries.push({
+          emp: computeTeamAverage(team),
+          color: assignedColors[team.id] ?? COLOR_PALETTE[0],
+          label: team.members?.length ? `Équipe ${team.name.split(" ")[0]}` : team.name,
+        });
+      }
+      for (const member of team.members ?? []) {
+        if (selectedIds.has(member.id)) {
+          entries.push({
+            emp: member,
+            color: assignedColors[member.id] ?? COLOR_PALETTE[1],
+            label: member.name,
+          });
+        }
+      }
+    }
+    return entries;
+  }, [selectedIds, assignedColors]);
+
+  // Radar data: one row per metric, one key per selected team/member
+  const RADAR_METRICS = [
+    { key: "bienveillance",   label: "Bienveillance",     get: (m: Employee["metrics"]) => m.bienveillance },
+    { key: "apport",          label: "Apport",             get: (m: Employee["metrics"]) => m.apport },
+    { key: "positivisme",     label: "Positivisme",        get: (m: Employee["metrics"]) => m.positivite },
+    { key: "accomplissement", label: "Accomplissement",    get: (m: Employee["metrics"]) => m.accomplissement },
+    { key: "bienEtre",        label: "Bien être",          get: (m: Employee["metrics"]) => m.bienEtre },
+    { key: "plaisir",         label: "Plaisir au travail", get: (m: Employee["metrics"]) => m.plaisir },
+  ];
+
+  const radarData = useMemo(() =>
+    RADAR_METRICS.map(metric => {
+      const row: Record<string, string | number> = { metric: metric.label };
+      for (const { emp } of chartEntries) {
+        row[emp.id] = parseFloat(metric.get(emp.metrics).toFixed(2));
+      }
+      return row;
+    }),
+  [chartEntries]);
+
+  // Flat list of every employee (team leads + members) for the radial chart
+  const allEmployees = useMemo(() => {
+    const list: Employee[] = [];
+    TEAMS.forEach((team, ti) => {
+      list.push(team);
+      (team.members ?? []).forEach(m => list.push(m));
+    });
+    return list;
+  }, []);
+
+  // Fixed color per teamId (index-based, stable)
+  const teamColors = useMemo(() => {
+    const map: Record<string, string> = {};
+    TEAMS.forEach((team, i) => {
+      const color = COLOR_PALETTE[i % COLOR_PALETTE.length];
+      map[team.teamId] = color;
+      (team.members ?? []).forEach(m => { map[m.teamId] = color; });
+    });
+    return map;
+  }, []);
+
+  const FILTER_PILLS = [
+    { id: "bienveillance", label: "Bienveillance", color: "#6CD3BA", textColor: "#111", icon: "team" },
+    { id: "apport", label: "Apport", color: "#00AB8E", textColor: "#FAFAFA", icon: "team" },
+    { id: "positivisme", label: "Positivisme", color: "#04604E", textColor: "#FAFAFA", icon: "team" },
+    { id: "accomplissement", label: "Accomplissement", color: "#7CBEFF", textColor: "#111", icon: "personal" },
+    { id: "bien-etre", label: "Bien être", color: "#1E81FF", textColor: "#FAFAFA", icon: "personal" },
+    { id: "plaisir", label: "Plaisir au travail", color: "#0059D3", textColor: "#FAFAFA", icon: "personal" },
+    { id: "enps", label: "eNPS", color: "#FAFAFA", textColor: "#111", icon: "smile", border: true },
+    { id: "drapeaux", label: "Drapeaux", color: "#FAFAFA", textColor: "#111", icon: "flag", border: true },
+  ];
+
+  const tabs = [
+    { id: "overview", label: "Vue d'ensemble" },
+    { id: "teams", label: "Toutes les équipes" },
+    { id: "flags", label: "Drapeaux" },
+    { id: "myteam", label: "Mon équipe" },
+  ];
+
+  const PILL_TO_METRIC: Record<string, keyof Employee["metrics"] | null> = {
+    bienveillance: "bienveillance",
+    apport: "apport",
+    positivisme: "positivite",
+    accomplissement: "accomplissement",
+    "bien-etre": "bienEtre",
+    plaisir: "plaisir",
+    enps: null,
+    drapeaux: null,
+  };
+
+  const METRIC_TO_COL: Record<string, string> = {
+    bienveillance: "Bienveillance",
+    apport: "Apport",
+    positivite: "Positivité",
+    accomplissement: "Accompliss.",
+    bienEtre: "Bien-être",
+    plaisir: "Plaisir",
+  };
+
+  const activeMetricKey = PILL_TO_METRIC[activeFilter] ?? null;
+
+  const filteredTeams = TEAMS
+    .filter(t =>
+      t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (t.members || []).some(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    )
+    .sort((a, b) => {
+      if (!activeMetricKey) return 0;
+      return (b.metrics[activeMetricKey] as number) - (a.metrics[activeMetricKey] as number);
+    });
+
+  return (
+    <div className="min-h-screen w-full" style={{ background: "#F5F6FA", fontFamily: "Montserrat, sans-serif" }}>
+      {/* Header */}
+      <div className="w-full bg-white px-8 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid #E1E1E1" }}>
+        <BloopLogo />
+        {/* Nav tabs */}
+        <div className="flex items-center gap-2">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className="px-5 py-2 rounded-full transition-all text-sm"
+              style={{
+                fontFamily: "Montserrat, sans-serif",
+                fontWeight: 500,
+                background: activeTab === tab.id ? "#00B7AE15" : "transparent",
+                color: activeTab === tab.id ? "#00B7AE" : "#6B7280",
+                border: activeTab === tab.id ? "1px solid #00B7AE30" : "1px solid transparent",
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        {/* Right side */}
+        <div className="flex items-center gap-4">
+          {/* Search */}
+          <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#FAFAFA]" style={{ border: "1px solid #E1E1E1", width: 200 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#CECECE" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+            </svg>
+            <span style={{ fontFamily: "Montserrat, sans-serif", fontSize: 14, color: "#CECECE", fontWeight: 300 }}>Search</span>
+          </div>
+          {/* Notifications */}
+          <div className="relative">
+            <div className="w-10 h-10 rounded-full bg-[#FAFAFA] flex items-center justify-center" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.06)", border: "1px solid #E1E1E1" }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#04604E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+            </div>
+            <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#00B7AE] flex items-center justify-center" style={{ fontSize: 11, color: "#fff", fontWeight: 600 }}>2</div>
+          </div>
+          {/* User */}
+          <div className="flex items-center gap-2">
+            <img src={imgJohnDoe} alt="John Doe" className="w-10 h-10 rounded-full object-cover" />
+            <span style={{ fontFamily: "Montserrat, sans-serif", fontWeight: 500, fontSize: 16, color: "#111" }}>Bonjour John Doe</span>
+            <svg width="12" height="12" viewBox="0 0 12 8" fill="none">
+              <path d="M1 1.5l5 5 5-5" stroke="#00B7AE" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="px-8 py-6 max-w-[1600px] mx-auto">
+
+        {/* KPI Summary Cards */}
+        {(() => {
+          const allMetrics = ["bienveillance", "apport", "positivite", "accomplissement", "bienEtre", "plaisir"] as const;
+          const metricLabels: Record<string, string> = {
+            bienveillance: "Bienveillance", apport: "Apport", positivite: "Positivité",
+            accomplissement: "Accomplissement", bienEtre: "Bien-être", plaisir: "Plaisir",
+          };
+
+          // Card 1 — metric with highest avg across all teams
+          const metricAvgs = allMetrics.map(k => ({
+            key: k,
+            avg: avg(TEAMS.map(t => t.metrics[k] as number)),
+          })).sort((a, b) => b.avg - a.avg);
+          const topMetric = metricAvgs[0];
+
+          // Card 2 — total red flags
+          const totalRedFlags = TEAMS.reduce((s, t) => s + t.drapeaux.red + (t.members ?? []).reduce((ms, m) => ms + m.drapeaux.red, 0), 0);
+
+          // Card 3 — team+metric with highest individual score
+          let bestScore = -1, bestTeam = TEAMS[0], bestMetricKey = allMetrics[0];
+          for (const t of TEAMS) {
+            for (const k of allMetrics) {
+              const score = t.metrics[k] as number;
+              if (score > bestScore) { bestScore = score; bestTeam = t; bestMetricKey = k; }
+            }
+          }
+
+          // Card 4 — team with most red flags
+          const worstTeam = [...TEAMS].sort((a, b) => b.drapeaux.red - a.drapeaux.red)[0];
+
+          const cards = [
+            {
+              label: "Point fort global",
+              value: metricLabels[topMetric.key],
+              unit: `moy. ${topMetric.avg.toFixed(2)} / 10`,
+              accent: "#00B7AE",
+              bg: "#F0FDFB",
+              icon: (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00B7AE" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                </svg>
+              ),
+            },
+            {
+              label: "Drapeaux rouges",
+              value: String(totalRedFlags),
+              unit: "signalements",
+              accent: "#EF4444",
+              bg: "#FEF2F2",
+              icon: (
+                <svg width="20" height="20" viewBox="0 0 12 14" fill="none">
+                  <path d="M1.5 1v12M1.5 1l9 3-9 3" stroke="#EF4444" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ),
+            },
+            {
+              label: `Meilleure équipe en ${metricLabels[bestMetricKey]}`,
+              value: bestTeam.name.split(" ")[0],
+              unit: `${bestScore.toFixed(2)} / 10`,
+              accent: "#10B981",
+              bg: "#F0FDF4",
+              icon: (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+              ),
+            },
+            {
+              label: "Équipe à surveiller",
+              value: worstTeam.name.split(" ")[0],
+              unit: `${worstTeam.drapeaux.red} drapeaux rouges`,
+              accent: "#F59E0B",
+              bg: "#FFFBEB",
+              icon: (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              ),
+            },
+          ];
+
+          return (
+            <div className="grid grid-cols-4 gap-4 mb-6">
+              {cards.map(card => (
+                <div
+                  key={card.label}
+                  className="rounded-2xl px-5 py-4 flex items-center gap-4"
+                  style={{ background: card.bg, border: `1px solid ${card.accent}22`, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}
+                >
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: card.accent + "18" }}>
+                    {card.icon}
+                  </div>
+                  <div>
+                    <p style={{ fontFamily: "Montserrat, sans-serif", fontSize: 11, color: "#6B7280", fontWeight: 500, marginBottom: 2 }}>{card.label}</p>
+                    <div className="flex items-baseline gap-1.5">
+                      <span style={{ fontFamily: "Montserrat, sans-serif", fontSize: 22, fontWeight: 700, color: card.accent }}>{card.value}</span>
+                      <span style={{ fontFamily: "Montserrat, sans-serif", fontSize: 11, color: "#9CA3AF", fontWeight: 400 }}>{card.unit}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+
+        {/* Table section header */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <h2 style={{ fontFamily: "Montserrat, sans-serif", fontWeight: 600, fontSize: 20, color: "#111" }}>Mes équipes</h2>
+            <button
+              onClick={() => {
+                const allTeamIds = TEAMS.filter(t => t.members?.length).map(t => t.id);
+                const allExpanded = allTeamIds.every(id => expandedTeams.has(id));
+                setExpandedTeams(allExpanded ? new Set() : new Set(allTeamIds));
+              }}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full transition-all"
+              style={{
+                fontFamily: "Montserrat, sans-serif",
+                fontSize: 12,
+                fontWeight: 600,
+                border: "1px solid #E1E1E1",
+                color: "#6B7280",
+                background: "#FAFAFA",
+              }}
+            >
+              {TEAMS.filter(t => t.members?.length).every(t => expandedTeams.has(t.id)) ? (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                  Tout replier
+                </>
+              ) : (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  Tout déplier
+                </>
+              )}
+            </button>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* Search */}
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white" style={{ border: "1px solid #CECECE", width: 280 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#CECECE" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+              </svg>
+              <input
+                className="flex-1 outline-none bg-transparent text-sm"
+                style={{ fontFamily: "Montserrat, sans-serif", fontSize: 14, color: "#111", fontWeight: 300 }}
+                placeholder="Search"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+            </div>
+            {/* Date filter */}
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white" style={{ border: "1px solid #E1E1E1", boxShadow: "1px 1px 7.5px rgba(177,177,177,0.1)" }}>
+              <span style={{ fontFamily: "Montserrat, sans-serif", fontWeight: 600, fontSize: 15, color: "#111", whiteSpace: "nowrap" }}>30 derniers jours</span>
+              <svg width="10" height="14" viewBox="0 0 10 14" fill="none">
+                <path d="M5 1v12M1 9l4 4 4-4" stroke="#00B7AE" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            {/* Filter icon */}
+            <button className="w-10 h-10 rounded-full flex items-center justify-center bg-white" style={{ border: "1px solid #00B7AE" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00B7AE" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Filter pills */}
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
+          {FILTER_PILLS.map(pill => (
+            <button
+              key={pill.id}
+              onClick={() => setActiveFilter(pill.id)}
+              className="flex items-center gap-2 px-4 py-1.5 rounded-full transition-all text-sm"
+              style={{
+                background: activeFilter === pill.id ? pill.color : pill.color,
+                color: pill.textColor,
+                fontFamily: "Montserrat, sans-serif",
+                fontWeight: 700,
+                fontSize: 14,
+                border: pill.border ? "1px solid #E1E1E1" : "none",
+                opacity: activeFilter === pill.id ? 1 : (pill.id !== activeFilter && ["bienveillance","apport","positivisme","accomplissement","bien-etre","positivisme2"].includes(pill.id) ? 0.75 : 1),
+              }}
+            >
+              {pill.icon === "smile" && (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" />
+                </svg>
+              )}
+              {pill.icon === "flag" && (
+                <svg width="12" height="14" viewBox="0 0 12 14" fill="none">
+                  <path d="M1.5 1v12M1.5 1l9 3-9 3" stroke="#2E2E2E" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+              {pill.icon === "team" && (
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                  <circle cx="5" cy="4" r="2.5" stroke={pill.textColor} strokeWidth="1.2" />
+                  <path d="M1 12c0-2.2 1.8-4 4-4s4 1.8 4 4" stroke={pill.textColor} strokeWidth="1.2" />
+                  <circle cx="10" cy="4" r="1.8" stroke={pill.textColor} strokeWidth="1.2" />
+                  <path d="M12 12c0-1.7-1-3-2.5-3.5" stroke={pill.textColor} strokeWidth="1.2" />
+                </svg>
+              )}
+              {pill.icon === "personal" && (
+                <svg width="12" height="13" viewBox="0 0 12 14" fill="none">
+                  <circle cx="6" cy="4" r="2.5" stroke={pill.textColor} strokeWidth="1.2" />
+                  <path d="M1 13c0-2.8 2.2-5 5-5s5 2.2 5 5" stroke={pill.textColor} strokeWidth="1.2" />
+                </svg>
+              )}
+              {pill.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Table card */}
+        <div className="bg-white rounded-2xl overflow-hidden mb-6" style={{ boxShadow: "0 2px 16px rgba(196,203,214,0.15)" }}>
+          {/* Table header */}
+          <div className="flex items-stretch" style={{ borderBottom: "1px solid #E1E1E1" }}>
+            <div className="px-4 py-2.5 flex items-center" style={{ width: 260, minWidth: 260, borderBottom: "4px solid transparent" }}>
+              <span style={{ fontFamily: "Montserrat, sans-serif", fontWeight: 700, fontSize: 14, color: "#6B7280" }}>Équipe de</span>
+            </div>
+            {[
+              { label: "Bienveillance", color: "#B2E7D8", metricKey: "bienveillance" },
+              { label: "Apport", color: "#1EBFA1", metricKey: "apport" },
+              { label: "Positivité", color: "#255C4D", metricKey: "positivite" },
+              { label: "Accompliss.", color: "#C8DEF8", metricKey: "accomplissement" },
+              { label: "Bien-être", color: "#3580F5", metricKey: "bienEtre" },
+              { label: "Plaisir", color: "#184EA1", metricKey: "plaisir" },
+            ].map(col => {
+              const isActive = activeMetricKey === col.metricKey;
+              return (
+                <div
+                  key={col.label}
+                  className="flex-1 flex items-center justify-center py-2.5"
+                  style={{
+                    borderBottom: `4px solid ${col.color}`,
+                    minWidth: 90,
+                    background: isActive ? col.color + "22" : "transparent",
+                  }}
+                >
+                  <span style={{
+                    fontFamily: "Montserrat, sans-serif",
+                    fontWeight: isActive ? 800 : 700,
+                    fontSize: 13,
+                    color: isActive ? "#111" : "#6B7280",
+                  }}>
+                    {col.label}
+                    {isActive && <span style={{ marginLeft: 4, fontSize: 10 }}>↓</span>}
+                  </span>
+                </div>
+              );
+            })}
+            <div className="flex items-center justify-center py-2.5" style={{ width: 80, minWidth: 80 }}>
+              <span style={{ fontFamily: "Montserrat, sans-serif", fontWeight: 700, fontSize: 13, color: "#6B7280" }}>eNPS</span>
+            </div>
+            <div className="flex items-center justify-center py-2.5" style={{ width: 140, minWidth: 140 }}>
+              <span style={{ fontFamily: "Montserrat, sans-serif", fontWeight: 700, fontSize: 13, color: "#6B7280" }}>Drapeaux</span>
+            </div>
+          </div>
+
+          {/* Table rows */}
+          {filteredTeams.map((team, teamIdx) => {
+            const isExpanded = expandedTeams.has(team.id);
+            const isSelected = selectedIds.has(team.id);
+            const teamColor = assignedColors[team.id];
+            const rowBg = teamIdx % 2 === 0 ? "#FFFFFF" : "#F9FAFB";
+
+            return (
+              <div key={team.id}>
+                {/* Team lead row */}
+                <div
+                  className="flex items-stretch hover:bg-[#F1FCF9] transition-colors"
+                  style={{ background: isSelected ? "#F1FCF9" : rowBg, borderBottom: "1px solid #E1E1E1" }}
+                >
+                  <div className="flex items-center gap-2 px-3 py-2" style={{ width: 260, minWidth: 260 }}>
+                    {/* Expand arrow */}
+                    <button
+                      onClick={() => team.members && toggleExpand(team.id)}
+                      className="w-5 h-5 flex items-center justify-center"
+                      style={{ opacity: team.members ? 1 : 0 }}
+                    >
+                      <svg
+                        width="10" height="10" viewBox="0 0 10 10" fill="none"
+                        style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+                      >
+                        <path d="M3 2l4 3-4 3" stroke="#111" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+
+                    {/* Color checkbox + indicator */}
+                    {(() => {
+                      const selectedMembers = (team.members ?? []).filter(m => selectedIds.has(m.id));
+                      const hasHiddenSelected = !isExpanded && selectedMembers.length > 0;
+                      return (
+                        <div className="relative shrink-0">
+                          <CheckboxColored
+                            checked={isSelected}
+                            color={teamColor ?? COLOR_PALETTE[0]}
+                            onChange={() => {
+                              if (!assignedColors[team.id] && !isSelected) {
+                                setAssignedColors(c => ({ ...c, [team.id]: COLOR_PALETTE[colorIndex % COLOR_PALETTE.length] }));
+                                setColorIndex(i => i + 1);
+                              }
+                              toggleSelect(team.id);
+                            }}
+                          />
+                          {hasHiddenSelected && (
+                            <div
+                              className="absolute flex items-center justify-center rounded-full"
+                              style={{
+                                width: 14, height: 14,
+                                top: -6, right: -6,
+                                background: "#1E81FF",
+                                border: "1.5px solid #fff",
+                                fontSize: 8,
+                                fontWeight: 700,
+                                color: "#fff",
+                                fontFamily: "Montserrat, sans-serif",
+                                lineHeight: 1,
+                              }}
+                            >
+                              {selectedMembers.length}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Avatar */}
+                    <img src={team.avatar} alt={team.name} className="rounded-full object-cover shrink-0" style={{ width: 32, height: 32 }} />
+
+                    <span className="truncate flex-1 min-w-0" style={{ fontFamily: "Montserrat, sans-serif", fontSize: 14, color: "#111", fontWeight: 400 }}>{team.name}</span>
+
+                    {/* Select / Deselect all members button */}
+                    {team.members && isExpanded && (() => {
+                      const allMembersSelected = team.members!.every(m => selectedIds.has(m.id));
+                      return (
+                        <button
+                          onClick={() => toggleSelectAllMembers(team)}
+                          className="shrink-0 px-2 py-0.5 rounded-full text-xs transition-all"
+                          style={{
+                            fontFamily: "Montserrat, sans-serif",
+                            fontSize: 11,
+                            fontWeight: 600,
+                            background: allMembersSelected ? "#FEE2E2" : "#E0F2FE",
+                            color: allMembersSelected ? "#EF4444" : "#00B7AE",
+                            border: `1px solid ${allMembersSelected ? "#FCA5A5" : "#BAE6FD"}`,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {allMembersSelected ? "Désélect. tout" : "Sélect. tout"}
+                        </button>
+                      );
+                    })()}
+                  </div>
+
+                  {(["bienveillance","apport","positivite","accomplissement","bienEtre","plaisir"] as const).map(col => (
+                    <div key={col} className="flex-1 flex items-center justify-center py-2.5" style={{ minWidth: 90 }}>
+                      <span style={{ fontFamily: "Montserrat, sans-serif", fontSize: 14, color: "#111", fontWeight: 300 }}>{team.metrics[col].toFixed(2)}</span>
+                    </div>
+                  ))}
+
+                  <div className="flex items-center justify-center gap-1 py-2.5" style={{ width: 80, minWidth: 80 }}>
+                    <span style={{ fontFamily: "Montserrat, sans-serif", fontSize: 14, color: "#9CA3AF", fontWeight: 300 }}>{team.metrics.enps}</span>
+                    {team.metrics.enps === "N/A" && (
+                      <span
+                        title="Les données eNPS ne sont pas encore disponibles pour cette période. Les résultats seront affichés dès réception des réponses au sondage."
+                        style={{ cursor: "help", color: "#CECECE", lineHeight: 1 }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                        </svg>
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-center gap-2 py-2.5" style={{ width: 140, minWidth: 140 }}>
+                    <FlagBadge count={team.drapeaux.green} color="#22C55E" />
+                    <FlagBadge count={team.drapeaux.orange} color="#F59E0B" />
+                    <FlagBadge count={team.drapeaux.red} color="#EF4444" />
+                  </div>
+                </div>
+
+                {/* Member rows */}
+                {isExpanded && team.members?.map((member, memberIdx) => {
+                  const memberSelected = selectedIds.has(member.id);
+                  const memberColor = assignedColors[member.id];
+                  const memberBg = memberIdx % 2 === 0 ? "#FFFFFF" : "#F1FCF9";
+
+                  return (
+                    <div
+                      key={member.id}
+                      className="flex items-stretch hover:bg-[#E8FAF5] transition-colors"
+                      style={{ background: memberSelected ? "#E8FAF5" : memberBg, borderBottom: "1px solid #E1E1E1" }}
+                    >
+                      <div className="flex items-center gap-2 px-3 py-2" style={{ width: 260, minWidth: 260, paddingLeft: 48 }}>
+                        {/* Color checkbox */}
+                        <CheckboxColored
+                          checked={memberSelected}
+                          color={memberColor ?? (teamColor ?? COLOR_PALETTE[1])}
+                          onChange={() => {
+                            if (!assignedColors[member.id] && !memberSelected) {
+                              const c = teamColor ?? COLOR_PALETTE[colorIndex % COLOR_PALETTE.length];
+                              setAssignedColors(prev => ({ ...prev, [member.id]: c }));
+                              if (!teamColor) setColorIndex(i => i + 1);
+                            }
+                            toggleSelect(member.id);
+                          }}
+                        />
+
+                        <img src={member.avatar} alt={member.name} className="rounded-full object-cover shrink-0" style={{ width: 32, height: 32 }} />
+                        <span className="truncate" style={{ fontFamily: "Montserrat, sans-serif", fontSize: 14, color: "#111", fontWeight: 400 }}>{member.name}</span>
+                      </div>
+
+                      {(["bienveillance","apport","positivite","accomplissement","bienEtre","plaisir"] as const).map(col => (
+                        <div key={col} className="flex-1 flex items-center justify-center py-2.5" style={{ minWidth: 90 }}>
+                          <span style={{ fontFamily: "Montserrat, sans-serif", fontSize: 14, color: "#111", fontWeight: 300 }}>{member.metrics[col].toFixed(2)}</span>
+                        </div>
+                      ))}
+
+                      <div className="flex items-center justify-center gap-1 py-2.5" style={{ width: 80, minWidth: 80 }}>
+                        <span style={{ fontFamily: "Montserrat, sans-serif", fontSize: 14, color: "#9CA3AF", fontWeight: 300 }}>{member.metrics.enps}</span>
+                        {member.metrics.enps === "N/A" && (
+                          <span
+                            title="Les données eNPS ne sont pas encore disponibles pour cette période. Les résultats seront affichés dès réception des réponses au sondage."
+                            style={{ cursor: "help", color: "#CECECE", lineHeight: 1 }}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                            </svg>
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-center gap-2 py-2.5" style={{ width: 140, minWidth: 140 }}>
+                        <FlagBadge count={member.drapeaux.green} color="#22C55E" />
+                        <FlagBadge count={member.drapeaux.orange} color="#F59E0B" />
+                        <FlagBadge count={member.drapeaux.red} color="#EF4444" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+
+        <TeamEvolutionChart chartEntries={chartEntries} />
+
+        {/* Radar + Radial side by side */}
+        <div className="flex gap-4 mb-6 items-stretch">
+
+        {/* Radar Chart card */}
+        <div className="bg-white rounded-2xl flex-1 min-w-0 flex flex-col" style={{ boxShadow: "0 2px 16px rgba(196,203,214,0.15)", padding: "16px 24px 16px" }}>
+          {/* Header */}
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p style={{ fontFamily: "Montserrat, sans-serif", fontWeight: 700, fontSize: 15, color: "#111" }}>
+                Comparatif des équipes
+              </p>
+              {!radarCollapsed && (
+                <p style={{ fontFamily: "Montserrat, sans-serif", fontSize: 12, color: "#6B7280", marginTop: 2 }}>
+                  Sélectionnez des équipes ou des membres dans le tableau pour les comparer
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {!radarCollapsed && (
+                <div className="relative">
+                  <select
+                    value={radarPeriod}
+                    onChange={e => setRadarPeriod(e.target.value)}
+                    className="appearance-none pl-4 pr-8 py-2 rounded-full bg-white cursor-pointer outline-none"
+                    style={{ border: "1px solid #E1E1E1", fontFamily: "Montserrat, sans-serif", fontSize: 13, fontWeight: 500, color: "#111" }}
+                  >
+                    {["7 derniers jours", "30 derniers jours", "3 derniers mois", "6 derniers mois", "Derniers 12 mois"].map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                  <svg className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" width="12" height="8" viewBox="0 0 12 8" fill="none">
+                    <path d="M1 1.5l5 5 5-5" stroke="#00B7AE" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+              )}
+              <button
+                onClick={() => setRadarCollapsed(c => !c)}
+                className="w-8 h-8 flex items-center justify-center rounded-full transition-all"
+                style={{ border: "1px solid #E1E1E1", background: "#FAFAFA" }}
+              >
+                <svg width="12" height="8" viewBox="0 0 12 8" fill="none" style={{ transform: radarCollapsed ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
+                  <path d="M1 1.5l5 5 5-5" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Chart */}
+          {!radarCollapsed && (<>{chartEntries.length === 0 ? (
+            <div className="flex items-center justify-center flex-1" style={{ height: 240 }}>
+              <p style={{ fontFamily: "Montserrat, sans-serif", fontSize: 13, color: "#CECECE" }}>
+                Cochez une équipe ou un membre pour afficher le graphe
+              </p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={240}>
+              <RadarChart data={radarData} margin={{ top: 10, right: 60, bottom: 10, left: 80 }}>
+                <PolarGrid stroke="#E5E7EB" />
+                <PolarAngleAxis
+                  dataKey="metric"
+                  tick={{ fontFamily: "Montserrat, sans-serif", fontSize: 12, fill: "#6B7280", fontWeight: 500 }}
+                />
+                <PolarRadiusAxis
+                  angle={90}
+                  domain={[0, 10]}
+                  tickCount={6}
+                  tick={{ fontFamily: "Montserrat, sans-serif", fontSize: 10, fill: "#9CA3AF" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                {chartEntries.map(({ emp, color }) => (
+                  <Radar
+                    key={`radar-${emp.id}`}
+                    name={`radar-${emp.id}`}
+                    dataKey={emp.id}
+                    stroke={color}
+                    fill={color}
+                    fillOpacity={0}
+                    strokeWidth={2}
+                    dot={{ r: 3, fill: color, stroke: color }}
+                    isAnimationActive={false}
+                  />
+                ))}
+                <RechartsTooltip
+                  content={({ label, payload }) => {
+                    if (!payload?.length) return null;
+                    const sorted = [...payload].sort((a, b) => (b.value as number) - (a.value as number));
+                    return (
+                      <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, padding: "10px 14px", fontFamily: "Montserrat, sans-serif" }}>
+                        <p style={{ fontWeight: 700, fontSize: 13, color: "#111", marginBottom: 8 }}>{label}</p>
+                        {sorted.map((item, i) => {
+                          const id = (item.name as string).replace("radar-", "");
+                          const entry = chartEntries.find(e => e.emp.id === id);
+                          const color = entry?.color ?? "#111";
+                          return (
+                            <div key={id} className="flex items-center gap-2 mb-1">
+                              <span style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", width: 16 }}>#{i + 1}</span>
+                              <span style={{ fontSize: 13, fontWeight: 700, color }}>{Number(item.value).toFixed(2)}</span>
+                              <span style={{ fontSize: 12, color: "#374151" }}>— {entry?.label ?? id}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  }}
+                />
+              </RadarChart>
+            </ResponsiveContainer>
+          )}
+
+          {/* Légende en bas */}
+          <div className="flex items-center gap-2 flex-wrap mt-3 pt-3" style={{ borderTop: "1px solid #F3F4F6" }}>
+            {chartEntries.length === 0 ? (
+              <span style={{ fontFamily: "Montserrat, sans-serif", fontSize: 12, color: "#CECECE" }}>Aucune sélection</span>
+            ) : (
+              chartEntries.map(({ emp, label, color }) => (
+                <div key={emp.id} className="flex items-center gap-1.5 px-3 py-1 rounded-full" style={{ background: color + "18", border: `1px solid ${color}40` }}>
+                  <div className="rounded-full shrink-0" style={{ width: 8, height: 8, background: color }} />
+                  <span style={{ fontFamily: "Montserrat, sans-serif", fontSize: 12, fontWeight: 600, color }}>{label}</span>
+                </div>
+              ))
+            )}
+          </div>
+          </>)}
+        </div>
+
+        {/* Radial score chart */}
+        <RadialScoreChart allEmployees={allEmployees} teamColors={teamColors} />
+
+        </div>{/* end flex row */}
+
+        {/* Indice de risques psychosociaux */}
+        <RisquesPsychosociauxChart chartEntries={chartEntries} />
+
+      </div>
+    </div>
+  );
+}
